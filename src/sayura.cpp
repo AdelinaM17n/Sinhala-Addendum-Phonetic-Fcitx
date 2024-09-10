@@ -65,7 +65,7 @@ static const std::unordered_map<KeySym, AddendumCharMapping> consonants1 = {
 
     {FcitxKey_n,{{0xdb1,0x000}, {}}},
 
-    {FcitxKey_m,{{0xdb8,0x000}, {}}},
+    {FcitxKey_m,{{0xdb8,0x000}, {{FcitxKey_B, {0xdb9, 0x000}}}}},{FcitxKey_M,{{0xdb8,0x000}, {}}},
     {FcitxKey_y,{{0xdba,0x000}, {}}},
     {FcitxKey_r,{{0xdbb,0x000}, {}}},
     {FcitxKey_l,{{0xdbd,0x000}, {}}},
@@ -83,7 +83,7 @@ static const std::unordered_map<KeySym, AddendumCharMapping> preNasals = {
     {FcitxKey_G,{{0xd9f,0x000}, {}}},
     {FcitxKey_J,{{0xda6,0x000}, {}}},
     {FcitxKey_D,{{0xdac,0x000}, {{FcitxKey_h, {0xdb3, 0x000}}}}},
-    {FcitxKey_M,{{0xdb9,0x000}, {}}},
+    {FcitxKey_B,{{0xdb9,0x000}, {}}},
 };
 
 static const std::unordered_map<KeySym, AddendumVowelMapping> vowels1 = {
@@ -175,7 +175,7 @@ public:
 
             addendumContextState.vowelStatus = CAN_INPUT_DIACRITIC;
             addendumContextState.hasAspirate = addendumCons.secondaryChar == 0x001;
-            addendumContextState.canFormPreNasal = false;
+            addendumContextState.canFormPreNasal = key_sym == FcitxKey_n;
             addendumContextState.modifierMappings.merge(
                 static_cast<
                     std::unordered_map<_FcitxKeySym, AddendumCharacter>>(
@@ -307,10 +307,14 @@ public:
         if(vowel_status == CAN_INPUT_DIACRITIC) {
             const uint32_t addendumDia = addendum.diacritic;
 
-            buffer_.pop_back();
+            //buffer_.pop_back();
 
             if(addendumDia != 0x002) {
+                buffer_.pop_back();
                 buffer_.push_back(addendumDia);
+            } else {
+                backspace();
+                updateUI();
             }
 
             addendumContextState.vowelStatus = CAN_MODIFY_DIACRITIC;
