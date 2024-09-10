@@ -58,12 +58,31 @@ static const std::unordered_map<KeySym, AddendumCharMapping> consonants1 = {
     {FcitxKey_p,{{0xdb4,0x001}, {}}},
     {FcitxKey_g,{{0xd9c,0x001}, {}}},
     {FcitxKey_j,{{0xd9c,0x001}, {}}},
-    {FcitxKey_h,{{0xd9c,0x000}, {}}},{FcitxKey_H,{{0xd9c,0x000}, {}}},
+    {FcitxKey_d,{{0xda9,0x001}, {{FcitxKey_h,{0xdaf,0x001}}}}},
+    {FcitxKey_b,{{0xdb6,0x001}, {}}},
+
+    {FcitxKey_n,{{0xdb1,0x000}, {}}},
+
+    {FcitxKey_m,{{0xdb8,0x000}, {}}},
+    {FcitxKey_y,{{0xdba,0x000}, {}}},
+    {FcitxKey_r,{{0xdbb,0x000}, {}}},
+    {FcitxKey_v,{{0xdc0,0x000}, {}}},
+
+    {FcitxKey_s,{{0xdc3,0x000}, {{FcitxKey_h,{0xdc2,0x000}}}}},
+    {FcitxKey_S,{{0xdc3,0x000}, {{FcitxKey_h,{0xdc1,0x000}}}}},
+    {FcitxKey_h,{{0xdc4,0x000}, {}}},{FcitxKey_H,{{0xdc4,0x000}, {}}},
+    {FcitxKey_f,{{0xdc6,0x000}, {}}},
 
 };
 
 static const std::unordered_map<KeySym, AddendumVowelMapping> vowels1 = {
-    {FcitxKey_a,{0xd85, 0x002, {{FcitxKey_a, {0xd86, 0xdcf}}}}}
+    {FcitxKey_a,{0xd85, 0x002, {{FcitxKey_a, {0xd86, 0xdcf}}}}},
+    {FcitxKey_A,{0xd87, 0xdd0, {{FcitxKey_a, {0xd88, 0xdd1}}}}},
+    {FcitxKey_i,{0xd89, 0xdd2, {{FcitxKey_i, {0xd8a, 0xdd3}}}}},
+    {FcitxKey_u,{0xd8b, 0xdd2, {{FcitxKey_u, {0xd8c, 0xdd3}}}}},
+    {FcitxKey_e,{0xd91, 0xdd2, {{FcitxKey_e, {0xd92, 0xdd3}}}}},
+
+
 };
 
 
@@ -187,6 +206,11 @@ public:
 
     void reset() {
         buffer_.clear();
+        addendumContextState = {
+            false,
+            CAN_INPUT_VOWEL,
+            {}
+        };
         updateUI();
     }
 
@@ -219,8 +243,6 @@ public:
         const AddendumCharacter addendumCons = addendum.character;
         const VowelStatus vowel_status = addendumContextState.vowelStatus;
 
-
-
         if(buffer_.empty() || vowel_status == CAN_INPUT_VOWEL || vowel_status == CAN_MODIFY_VOWEL) {
             if(vowel_status == CAN_MODIFY_VOWEL) {
                 commitPreedit();
@@ -230,7 +252,7 @@ public:
             buffer_.push_back(0xdca);
 
             addendumContextState.vowelStatus = CAN_INPUT_DIACRITIC;
-            addendumContextState.hasAspirate = addendumCons.secondaryChar;
+            addendumContextState.hasAspirate = addendumCons.secondaryChar == 0x001;
             addendumContextState.modifierMappings.merge(
                 static_cast<
                     std::unordered_map<_FcitxKeySym, AddendumCharacter>>(
@@ -247,7 +269,7 @@ public:
                 buffer_.pop_back(); buffer_.pop_back();
                 buffer_.push_back(find_value->baseChar);
                 buffer_.push_back(0xdca);
-                addendumContextState.hasAspirate = addendumCons.secondaryChar;
+                addendumContextState.hasAspirate = (find_value->secondaryChar == 0x001);
                 addendumContextState.modifierMappings.clear();
                 // it shouldn't be possible to reach here with anything else than CAN_INPUT_DIACRITIC
                 return;
