@@ -41,11 +41,13 @@ enum VowelStatus {
 
 struct AddendumContextState {
     bool hasAspirate;
+    bool canFormPreNasal;
     VowelStatus vowelStatus;
     std::unordered_map<KeySym, AddendumCharacter> modifierMappings;
 };
 
 static AddendumContextState addendumContextState = {
+    false,
     false,
     CAN_INPUT_VOWEL,
     {}
@@ -56,32 +58,41 @@ static const std::unordered_map<KeySym, AddendumCharMapping> consonants1 = {
     {FcitxKey_c,{{0xd9a,0x001}, {{FcitxKey_h,{0xda0,0x001}}}}},
     {FcitxKey_t,{{0xda7,0x001}, {{FcitxKey_h,{0xdad,0x001}}}}},
     {FcitxKey_p,{{0xdb4,0x001}, {}}},
-    {FcitxKey_g,{{0xd9c,0x001}, {}}},
-    {FcitxKey_j,{{0xd9c,0x001}, {}}},
-    {FcitxKey_d,{{0xda9,0x001}, {{FcitxKey_h,{0xdaf,0x001}}}}},
-    {FcitxKey_b,{{0xdb6,0x001}, {}}},
+    {FcitxKey_g,{{0xd9c,0x001}, {}}},{FcitxKey_G,{{0xd9c,0x001}, {}}},
+    {FcitxKey_j,{{0xd9c,0x001}, {}}},{FcitxKey_J,{{0xd9c,0x001}, {}}},
+    {FcitxKey_d,{{0xda9,0x001}, {{FcitxKey_h,{0xdaf,0x001}}}}},{FcitxKey_D,{{0xda9,0x001}, {{FcitxKey_h,{0xdaf,0x001}}}}},
+    {FcitxKey_b,{{0xdb6,0x001}, {}}},{FcitxKey_B,{{0xdb6,0x001}, {}}},
 
     {FcitxKey_n,{{0xdb1,0x000}, {}}},
 
     {FcitxKey_m,{{0xdb8,0x000}, {}}},
     {FcitxKey_y,{{0xdba,0x000}, {}}},
     {FcitxKey_r,{{0xdbb,0x000}, {}}},
+    {FcitxKey_l,{{0xdbd,0x000}, {}}},
     {FcitxKey_v,{{0xdc0,0x000}, {}}},
 
     {FcitxKey_s,{{0xdc3,0x000}, {{FcitxKey_h,{0xdc2,0x000}}}}},
     {FcitxKey_S,{{0xdc3,0x000}, {{FcitxKey_h,{0xdc1,0x000}}}}},
     {FcitxKey_h,{{0xdc4,0x000}, {}}},{FcitxKey_H,{{0xdc4,0x000}, {}}},
+    {FcitxKey_L,{{0xdc5,0x000}, {}}},
     {FcitxKey_f,{{0xdc6,0x000}, {}}},
 
+};
+
+static const std::unordered_map<KeySym, AddendumCharMapping> preNasals = {
+    {FcitxKey_G,{{0xd9f,0x000}, {}}},
+    {FcitxKey_J,{{0xda6,0x000}, {}}},
+    {FcitxKey_D,{{0xdac,0x000}, {{FcitxKey_h, {0xdb3, 0x000}}}}},
+    {FcitxKey_M,{{0xdb9,0x000}, {}}},
 };
 
 static const std::unordered_map<KeySym, AddendumVowelMapping> vowels1 = {
     {FcitxKey_a,{0xd85, 0x002, {{FcitxKey_a, {0xd86, 0xdcf}}}}},
     {FcitxKey_A,{0xd87, 0xdd0, {{FcitxKey_a, {0xd88, 0xdd1}}}}},
     {FcitxKey_i,{0xd89, 0xdd2, {{FcitxKey_i, {0xd8a, 0xdd3}}}}},
-    {FcitxKey_u,{0xd8b, 0xdd2, {{FcitxKey_u, {0xd8c, 0xdd3}}}}},
-    {FcitxKey_e,{0xd91, 0xdd2, {{FcitxKey_e, {0xd92, 0xdd3}}}}},
-
+    {FcitxKey_u,{0xd8b, 0xdd4, {{FcitxKey_u, {0xd8c, 0xdd6}}}}},
+    {FcitxKey_e,{0xd91, 0xdd9, {{FcitxKey_e, {0xd92, 0xdda}}}}},
+    {FcitxKey_o,{0xd94, 0xddc, {{FcitxKey_o, {0xd95, 0xddd}}}}},
 
 };
 
@@ -117,6 +128,7 @@ public:
     void reset() {
         buffer_.clear();
         addendumContextState = {
+            false,
             false,
             CAN_INPUT_VOWEL,
             {}
@@ -163,6 +175,7 @@ public:
 
             addendumContextState.vowelStatus = CAN_INPUT_DIACRITIC;
             addendumContextState.hasAspirate = addendumCons.secondaryChar == 0x001;
+            addendumContextState.canFormPreNasal = false;
             addendumContextState.modifierMappings.merge(
                 static_cast<
                     std::unordered_map<_FcitxKeySym, AddendumCharacter>>(
@@ -180,8 +193,30 @@ public:
                 buffer_.push_back(find_value->baseChar);
                 buffer_.push_back(0xdca);
                 addendumContextState.hasAspirate = (find_value->secondaryChar == 0x001);
+                addendumContextState.canFormPreNasal = false;
                 addendumContextState.modifierMappings.clear();
                 // it shouldn't be possible to reach here with anything else than CAN_INPUT_DIACRITIC
+                return;
+            }
+        }
+
+        if(addendumContextState.canFormPreNasal) {
+            auto find_value = findValue(preNasals, key_sym);
+
+            if(find_value != nullptr) {
+                buffer_.pop_back(); buffer_.pop_back();
+                buffer_.push_back(find_value->character.baseChar);
+                buffer_.push_back(0xdca);
+
+                addendumContextState.hasAspirate = false;
+                addendumContextState.canFormPreNasal = false;
+                addendumContextState.modifierMappings.clear();
+                addendumContextState.modifierMappings.merge(
+                static_cast<
+                    std::unordered_map<_FcitxKeySym, AddendumCharacter>>(
+                    find_value->leadingModCharMappings)
+                );
+
                 return;
             }
         }
@@ -193,6 +228,8 @@ public:
 
             addendumContextState.modifierMappings.clear();
             addendumContextState.hasAspirate = false;
+            addendumContextState.canFormPreNasal = false;
+
             // if you can make the letter into an aspirate, the vowel status MUST already be CAN_INPUT_DIACRITIC
             return;
         }
@@ -206,7 +243,7 @@ public:
 
                 addendumContextState.modifierMappings.clear();
                 addendumContextState.hasAspirate = false;
-
+                addendumContextState.canFormPreNasal = false;
                 return;
             }
         }
@@ -218,6 +255,7 @@ public:
             buffer_.push_back(0xdca);
 
             addendumContextState.vowelStatus = CAN_INPUT_DIACRITIC;
+            addendumContextState.canFormPreNasal = key_sym == FcitxKey_n;
             addendumContextState.modifierMappings.clear();
             addendumContextState.modifierMappings.merge(
                 static_cast<
@@ -236,6 +274,7 @@ public:
 
             addendumContextState.vowelStatus = CAN_MODIFY_VOWEL;
             addendumContextState.hasAspirate = false;
+            addendumContextState.canFormPreNasal = false;
             addendumContextState.modifierMappings.clear();
             addendumContextState.modifierMappings.merge(
                 static_cast<
@@ -254,6 +293,7 @@ public:
                     buffer_.pop_back();
                     buffer_.push_back(find_value->baseChar);
                     addendumContextState.hasAspirate = false;
+                    addendumContextState.canFormPreNasal = false;
                     addendumContextState.modifierMappings.clear();
                     commitPreedit();
                     return;
@@ -275,6 +315,7 @@ public:
 
             addendumContextState.vowelStatus = CAN_MODIFY_DIACRITIC;
             addendumContextState.hasAspirate = false;
+            addendumContextState.canFormPreNasal = false;
             addendumContextState.modifierMappings.clear();
             addendumContextState.modifierMappings.merge(
                 static_cast<
@@ -290,12 +331,15 @@ public:
                 const AddendumCharacter *find_value = findValue(addendumContextState.modifierMappings, key_sym);
 
                 if (find_value != nullptr) {
-                    if(buffer_.front() == 0xdca) {
+                    const uint32_t secondary_char = find_value->secondaryChar;
+
+                    if(secondary_char != 0xdcf) {
                         buffer_.pop_back();
                     }
-                    buffer_.push_back(find_value->secondaryChar);
+                    buffer_.push_back(secondary_char);
 
                     addendumContextState.hasAspirate = false;
+                    addendumContextState.canFormPreNasal = false;
                     addendumContextState.modifierMappings.clear();
                     commitPreedit();
                     return;
